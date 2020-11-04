@@ -1,0 +1,33 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.8",
+	"FriendlyName": "RuntimeMeshImportExport",
+	"Description": "Allows to import and export at runtime created meshes with help of Assimp library.",
+	"Category": "Other",
+	"CreatedBy": "Lucid Layers",
+	"CreatedByURL": "www.lucidlayers.de",
+	"DocsURL": "https://forums.unrealengine.com/unreal-engine/marketplace/1653161-runtimemeshimportexport-import-and-export-runtime-created-static-meshes-using-assimp-library",
+	"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/content/4a300859ba06426494dbaf22349273ba",
+	"SupportURL": "https://forums.unrealengine.com/unreal-engine/marketplace/1653161-runtimemeshimportexport-import-and-export-runtime-created-static-meshes-using-assimp-library",
+	"EngineVersion": "4.25.3",
+	"CanContainContent": false,
+	"Installed": true,
+	"Modules": [
+		{
+			"Name": "RuntimeMeshImportExport",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
+				"Win64",
+				"Win32"
+			]
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "ProceduralMeshComponent",
+			"Enabled": true
+		}
+	]
+}
