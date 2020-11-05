@@ -62,7 +62,8 @@ namespace UnrealBuildTool.Rules
                 "Core",
                 "CoreUObject",
                 "Engine",
-                "ProceduralMeshComponent"
+                "ProceduralMeshComponent",
+                "ImageWriteQueue"
                // "RHI",
                // "RenderCore",
                     // ... add other public dependencies that you statically link with here ...
@@ -77,7 +78,7 @@ namespace UnrealBuildTool.Rules
                     //	"SlateCore",
                     // ... add private dependencies that you statically link with here ...	
                     // 
-                    "Projects"
+                    "Projects"                    
                 }
                 );
 

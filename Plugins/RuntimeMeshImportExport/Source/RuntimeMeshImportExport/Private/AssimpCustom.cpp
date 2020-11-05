@@ -7,6 +7,8 @@
 #include "RuntimeMeshImportExport.h"
 #include "RuntimeMeshImportExportLibrary.h"
 #include "RuntimeMeshImportExportTypes.h"
+//#include "C:/Program Files/Epic Games/UE_4.25/Engine/Source/Runtime/ImageWriteQueue/Public/ImageWriteBlueprintLibrary.h"
+#include "Exporters/TextureExporterTGA.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 
 FAssimpScene::FAssimpScene()
@@ -312,6 +314,16 @@ void FAssimpNode::ProcessGatheredData_Internal(FAssimpScene& scene, const FRunti
     }
 }
 
+void FAssimpNode::TextureExportCompleted(bool onSuccess)
+{
+    UE_LOG(LogTemp, Warning, TEXT("oooo  on success = %d"), onSuccess);
+}
+
+void TextureExportCompleted1(bool onSuccess)
+{
+    UE_LOG(LogTemp, Warning, TEXT("oooo  on success = %d"), onSuccess);
+}
+
 void FAssimpNode::CreateAssimpMeshesFromMeshData(FAssimpScene& scene, const FRuntimeMeshExportParam& param)
 {
     // Process the gathered mesh data
@@ -391,9 +403,62 @@ void FAssimpNode::CreateAssimpMeshesFromMeshData(FAssimpScene& scene, const FRun
 					const float shininess = 0.f;
 					material->AddProperty(&shininess, 1, AI_MATKEY_SHININESS);
 				}
+                TArray<UTexture*> OutTextures;
+                TArray<TArray<int32>> OutIndices;
+                section.material->GetUsedTexturesAndIndices(OutTextures,OutIndices,EMaterialQualityLevel::Type::High,ERHIFeatureLevel::SM5);
+                UE_LOG(LogTemp, Warning, TEXT("oooo out texture length = %d"), OutTextures.Num()); 
+                //int32 diffuseIndex = 0;
+                for (UTexture* currentTex : OutTextures)
+                {
+                    //Export material textures
+                    //const FString textureExportPath("d://temp//"+ currentTex->GetFName().ToString());
+                    //const FImageWriteOptions options;
+                    //options.NativeOnComplete = &TextureExportCompleted;
+                  
+                    //UImageWriteBlueprintLibrary::ExportToDisk(currentTex, textureExportPath, options);
+                    
+                    FString FileName = FPaths::ProjectDir()+"Export/" + currentTex->GetFName().ToString()+".tga";
+                    //UTextureExporterTGA* TGAExporter;
+                    //TGAExporter = NewObject<UTextureExporterTGA>( UTextureExporterTGA::StaticClass());
+                    int32 isExported = UExporter::ExportToFile(currentTex, NULL, *FileName, false);
+
+                    UE_LOG(LogTemp, Warning, TEXT("oooo out texture (%s) exported = %d"), *FileName,isExported);
+
+                    UE_LOG(LogTemp, Warning, TEXT("oooo out texture name = %s"),*currentTex->GetFName().ToString());
+                    FString texturePath;
+                    currentTex->GetPathName(NULL, texturePath);
+                    UE_LOG(LogTemp, Warning, TEXT("oooo out texture path = %s"),*texturePath);
+
+                    aiString assimpTexPath;
+                    assimpTexPath = std::string(TCHAR_TO_UTF8(*FileName));
+                    
+                    FTextureFormatSettings texFormatSetting;
+                    currentTex->GetDefaultFormatSettings(texFormatSetting);
+                    if (texFormatSetting.CompressionSettings == TextureCompressionSettings::TC_Default)
+                    {
+                        material->AddProperty(&assimpTexPath, AI_MATKEY_TEXTURE_DIFFUSE(0));
+                    }
+                    else if (texFormatSetting.CompressionSettings == TextureCompressionSettings::TC_Normalmap)
+                    {
+                        material->AddProperty(&assimpTexPath,AI_MATKEY_TEXTURE_NORMALS(0));
+                    }
+                    
+                    //diffuseIndex++;
+                }
+
+                for (TArray<int32> outIndex:OutIndices)
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("************************************"));
+                    for (int32 index : outIndex)
+                    {
+                        UE_LOG(LogTemp, Warning, TEXT("oooo out texture column = %d"), index);
+                    }
+                }
 
                 //aiString fileName(model.meshes[i].textures[0].path.toStdString()); 
-                material->AddProperty(&assimpTexturePath, AI_MATKEY_TEXTURE_DIFFUSE(0));
+                ///material->AddProperty(&assimpTexturePath, AI_MATKEY_TEXTURE_DIFFUSE(0));
+                ///assimpTexturePath = "E:\\Unreal Engine Projects\\ImportExportDemo\\Export\\T_Chair_N.bmp";
+                ///material->AddProperty(&assimpTexturePath, AI_MATKEY_TEXTURE_NORMALS(0));
 
                 //material->AddProperty(assimpTexturePath.C_Str(),1, AI_MATKEY_TEXTURE_DIFFUSE(0));
                 //int uvwIndex = 0;
@@ -468,6 +533,7 @@ void FAssimpNode::CreateAssimpMeshesFromMeshData(FAssimpScene& scene, const FRun
         }
     }
 }
+
 
 bool FAssimpNode::ValidateMeshSection(FAssimpScene& scene, TScriptInterface<IMeshExportable>& exportable, FExportableMeshSection& section)
 {

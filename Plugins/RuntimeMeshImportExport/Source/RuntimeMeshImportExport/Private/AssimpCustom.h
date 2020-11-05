@@ -93,6 +93,8 @@ private:
 	void ClearExportData();
 
 	void GetNodesRecursive(TArray<FAssimpNode*>& outNodes);
+	UFUNCTION()
+	void TextureExportCompleted(bool onSuccess);
 };
 
 struct FAssimpScene : public aiScene
