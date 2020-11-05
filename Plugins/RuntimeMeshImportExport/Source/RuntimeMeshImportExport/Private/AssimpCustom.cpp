@@ -315,15 +315,6 @@ void FAssimpNode::ProcessGatheredData_Internal(FAssimpScene& scene, const FRunti
     }
 }
 
-void FAssimpNode::TextureExportCompleted(bool onSuccess)
-{
-    UE_LOG(LogTemp, Warning, TEXT("oooo  on success = %d"), onSuccess);
-}
-
-void TextureExportCompleted1(bool onSuccess)
-{
-    UE_LOG(LogTemp, Warning, TEXT("oooo  on success = %d"), onSuccess);
-}
 
 void FAssimpNode::CreateAssimpMeshesFromMeshData(FAssimpScene& scene, const FRuntimeMeshExportParam& param)
 {
@@ -404,49 +395,46 @@ void FAssimpNode::CreateAssimpMeshesFromMeshData(FAssimpScene& scene, const FRun
 					const float shininess = 0.f;
 					material->AddProperty(&shininess, 1, AI_MATKEY_SHININESS);
 				}
+
+                //Export textures and add in aiMaterial - begin
                 TArray<UTexture*> OutTextures;
                 TArray<TArray<int32>> OutIndices;
                 section.material->GetUsedTexturesAndIndices(OutTextures,OutIndices,EMaterialQualityLevel::Type::High,ERHIFeatureLevel::SM5);
-                UE_LOG(LogTemp, Warning, TEXT("oooo out texture length = %d"), OutTextures.Num()); 
-                //int32 diffuseIndex = 0;
+                UE_LOG(LogTemp, Display, TEXT("M_M Total texture in material = %d"), OutTextures.Num()); 
                 for (UTexture* currentTex : OutTextures)
-                {
-                    //Export material textures
-                    //const FString textureExportPath("d://temp//"+ currentTex->GetFName().ToString());
-                    //const FImageWriteOptions options;
-                    //options.NativeOnComplete = &TextureExportCompleted;
-                  
-                    //UImageWriteBlueprintLibrary::ExportToDisk(currentTex, textureExportPath, options);
-                    
+                {   // Texture export file name and path            
                     FString FileName = FPaths::ProjectDir()+"Export/" + currentTex->GetFName().ToString()+".bmp";
-                    //UTextureExporterTGA* TGAExporter;
-                    //TGAExporter = NewObject<UTextureExporterTGA>( UTextureExporterTGA::StaticClass());
+                    // Exports texture
                     int32 isExported = UExporter::ExportToFile(currentTex, NULL, *FileName, false);
 
-                    UE_LOG(LogTemp, Warning, TEXT("oooo out texture (%s) exported = %d"), *FileName,isExported);
+                    UE_LOG(LogTemp, Display, TEXT("M_M Assimp Exporting mesh..."));
 
-                    UE_LOG(LogTemp, Warning, TEXT("oooo out texture name = %s"),*currentTex->GetFName().ToString());
+                    UE_LOG(LogTemp, Display, TEXT("M_M exported texture name = %s  is successfully exported? = %d"), *FileName,isExported);
+                    // Get UE4's content browser texture path. it is just for development purpose
                     FString texturePath;
                     currentTex->GetPathName(NULL, texturePath);
-                    UE_LOG(LogTemp, Warning, TEXT("oooo out texture path = %s"),*texturePath);
-
+                    UE_LOG(LogTemp, Display, TEXT("M_M Unreal content browser texture path = %s"),*texturePath);
+                    //convert FString texture path into aiString for assimp
                     aiString assimpTexPath;
                     assimpTexPath = std::string(TCHAR_TO_UTF8(*FileName));
-                    
+                    //FTextureFormatSettings contains texture details
                     FTextureFormatSettings texFormatSetting;
                     currentTex->GetDefaultFormatSettings(texFormatSetting);
+                    //Workaround to check for Albedo and Normal texture
                     if (texFormatSetting.CompressionSettings == TextureCompressionSettings::TC_Default)
                     {
+                        //Add texture as a property to material being exported
                         material->AddProperty(&assimpTexPath, AI_MATKEY_TEXTURE_DIFFUSE(0));
                     }
                     else if (texFormatSetting.CompressionSettings == TextureCompressionSettings::TC_Normalmap)
                     {
+                        //Add texture as a property to material being exported
                         material->AddProperty(&assimpTexPath,AI_MATKEY_TEXTURE_NORMALS(0));
                     }
-                    
-                    //diffuseIndex++;
-                }
 
+                }
+                /*
+                * Do not need material indices
                 for (TArray<int32> outIndex:OutIndices)
                 {
                     UE_LOG(LogTemp, Warning, TEXT("************************************"));
@@ -455,17 +443,8 @@ void FAssimpNode::CreateAssimpMeshesFromMeshData(FAssimpScene& scene, const FRun
                         UE_LOG(LogTemp, Warning, TEXT("oooo out texture column = %d"), index);
                     }
                 }
-
-                //aiString fileName(model.meshes[i].textures[0].path.toStdString()); 
-                ///material->AddProperty(&assimpTexturePath, AI_MATKEY_TEXTURE_DIFFUSE(0));
-                ///assimpTexturePath = "E:\\Unreal Engine Projects\\ImportExportDemo\\Export\\T_Chair_N.bmp";
-                ///material->AddProperty(&assimpTexturePath, AI_MATKEY_TEXTURE_NORMALS(0));
-
-                //material->AddProperty(assimpTexturePath.C_Str(),1, AI_MATKEY_TEXTURE_DIFFUSE(0));
-                //int uvwIndex = 0;
-                //material->AddProperty(&uvwIndex, 1, AI_MATKEY_UVWSRC_DIFFUSE(0));
-                //aiTextureMapMode clampMode = aiTextureMapMode::aiTextureMapMode_Wrap;
-                //material->AddProperty<int>(&clampMode, 1, AI_MATKEY_MAPPINGMODE_U(aiTextureType_DIFFUSE, 0));
+                */
+                //Export textures and add in aiMaterial - end
 			}
 			else
 			{
