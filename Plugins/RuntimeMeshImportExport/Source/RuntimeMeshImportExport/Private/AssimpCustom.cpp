@@ -9,6 +9,7 @@
 #include "RuntimeMeshImportExportTypes.h"
 //#include "C:/Program Files/Epic Games/UE_4.25/Engine/Source/Runtime/ImageWriteQueue/Public/ImageWriteBlueprintLibrary.h"
 #include "Exporters/TextureExporterTGA.h"
+#include "Exporters/TextureExporterBMP.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 
 FAssimpScene::FAssimpScene()
@@ -417,7 +418,7 @@ void FAssimpNode::CreateAssimpMeshesFromMeshData(FAssimpScene& scene, const FRun
                   
                     //UImageWriteBlueprintLibrary::ExportToDisk(currentTex, textureExportPath, options);
                     
-                    FString FileName = FPaths::ProjectDir()+"Export/" + currentTex->GetFName().ToString()+".tga";
+                    FString FileName = FPaths::ProjectDir()+"Export/" + currentTex->GetFName().ToString()+".bmp";
                     //UTextureExporterTGA* TGAExporter;
                     //TGAExporter = NewObject<UTextureExporterTGA>( UTextureExporterTGA::StaticClass());
                     int32 isExported = UExporter::ExportToFile(currentTex, NULL, *FileName, false);
