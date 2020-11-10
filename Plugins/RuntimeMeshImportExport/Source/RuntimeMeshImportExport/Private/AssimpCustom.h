@@ -93,6 +93,9 @@ private:
 	void ClearExportData();
 
 	void GetNodesRecursive(TArray<FAssimpNode*>& outNodes);
+
+	bool ExportTexture(UTexture* textureRef, FString& outTexturePath);
+	aiString FStringToaiString(FString str);
 };
 
 struct FAssimpScene : public aiScene

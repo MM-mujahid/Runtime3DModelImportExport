@@ -16,8 +16,7 @@
 	"Plugins": [
 		{
 			"Name": "RuntimeMeshImportExport",
-			"Enabled": true,
-			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/content/4a300859ba06426494dbaf22349273ba"
+			"Enabled": true
 		},
 		{
 			"Name": "EasyFileDialog",

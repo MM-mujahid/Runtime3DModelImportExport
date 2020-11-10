@@ -10,6 +10,8 @@
 //#include "C:/Program Files/Epic Games/UE_4.25/Engine/Source/Runtime/ImageWriteQueue/Public/ImageWriteBlueprintLibrary.h"
 #include "Exporters/TextureExporterTGA.h"
 #include "Exporters/TextureExporterBMP.h"
+#include "Materials/MaterialExpressionConstant.h"
+
 #include "ProfilingDebugging/ScopedTimers.h"
 
 FAssimpScene::FAssimpScene()
@@ -392,59 +394,138 @@ void FAssimpNode::CreateAssimpMeshesFromMeshData(FAssimpScene& scene, const FRun
 				}
 				// Shininess (only a FIX for gltf.v1 crash cause shininess not available)
 				{
-					const float shininess = 0.f;
+					const float shininess = 1.0f;
 					material->AddProperty(&shininess, 1, AI_MATKEY_SHININESS);
 				}
 
-                //Export textures and add in aiMaterial - begin
+                //Export Normal texture and add in aiMaterial - begin
                 TArray<UTexture*> OutTextures;
                 TArray<TArray<int32>> OutIndices;
                 section.material->GetUsedTexturesAndIndices(OutTextures,OutIndices,EMaterialQualityLevel::Type::High,ERHIFeatureLevel::SM5);
                 UE_LOG(LogTemp, Display, TEXT("M_M Total texture in material = %d"), OutTextures.Num()); 
                 for (UTexture* currentTex : OutTextures)
-                {   // Texture export file name and path            
-                    FString FileName = FPaths::ProjectDir()+"Export/" + currentTex->GetFName().ToString()+".bmp";
-                    // Exports texture
-                    int32 isExported = UExporter::ExportToFile(currentTex, NULL, *FileName, false);
-
+                {   
+                    FString FileName;
+                    ExportTexture(currentTex, FileName);
                     UE_LOG(LogTemp, Display, TEXT("M_M Assimp Exporting mesh..."));
-
-                    UE_LOG(LogTemp, Display, TEXT("M_M exported texture name = %s  is successfully exported? = %d"), *FileName,isExported);
-                    // Get UE4's content browser texture path. it is just for development purpose
-                    FString texturePath;
-                    currentTex->GetPathName(NULL, texturePath);
-                    UE_LOG(LogTemp, Display, TEXT("M_M Unreal content browser texture path = %s"),*texturePath);
+                                       
                     //convert FString texture path into aiString for assimp
                     aiString assimpTexPath;
-                    assimpTexPath = std::string(TCHAR_TO_UTF8(*FileName));
+                    assimpTexPath = FStringToaiString(FileName);
+                    
                     //FTextureFormatSettings contains texture details
                     FTextureFormatSettings texFormatSetting;
                     currentTex->GetDefaultFormatSettings(texFormatSetting);
-                    //Workaround to check for Albedo and Normal texture
-                    if (texFormatSetting.CompressionSettings == TextureCompressionSettings::TC_Default)
-                    {
-                        //Add texture as a property to material being exported
-                        material->AddProperty(&assimpTexPath, AI_MATKEY_TEXTURE_DIFFUSE(0));
-                    }
-                    else if (texFormatSetting.CompressionSettings == TextureCompressionSettings::TC_Normalmap)
+
+                    //Check for Normal texture
+                    if (texFormatSetting.CompressionSettings == TextureCompressionSettings::TC_Normalmap)
                     {
                         //Add texture as a property to material being exported
                         material->AddProperty(&assimpTexPath,AI_MATKEY_TEXTURE_NORMALS(0));
                     }
 
                 }
-                /*
-                * Do not need material indices
-                for (TArray<int32> outIndex:OutIndices)
+                //Export Normal texture and add into aiMaterial - end
+
+                //Read metallic parameter and add into aiMaterial
                 {
-                    UE_LOG(LogTemp, Warning, TEXT("************************************"));
-                    for (int32 index : outIndex)
+                    FHashedMaterialParameterInfo matOpaqueParamInfo;
+                    UTexture* metallic_tex;
+                    matOpaqueParamInfo.Name = FName("Metallic_tex");                    
+                    if (section.material->GetTextureParameterValue(matOpaqueParamInfo, metallic_tex))
                     {
-                        UE_LOG(LogTemp, Warning, TEXT("oooo out texture column = %d"), index);
+                        FString FileName;
+                        ExportTexture(metallic_tex, FileName);
+                        aiString str = FStringToaiString(FileName);
+                        float mettalicFactor = 0.8f;
+                        material->AddProperty(&str, AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE);
                     }
                 }
-                */
-                //Export textures and add in aiMaterial - end
+
+                //Vector material parameters
+                {
+                    FHashedMaterialParameterInfo color4DSpecularParam;
+                    FLinearColor specColor;
+                    color4DSpecularParam.Name = FName("Specular_vect");
+                    if (section.material->GetVectorParameterValue(color4DSpecularParam, specColor))
+                    {
+                        aiColor4D specularColor(specColor.R, specColor.G, specColor.B,specColor.A);
+                        material->AddProperty(&specularColor, 1, AI_MATKEY_GLTF_PBRSPECULARGLOSSINESS_SPECULAR_FACTOR);
+                    }
+                }
+                
+                {
+                    FHashedMaterialParameterInfo color4DBasecolorParam;
+                    FLinearColor basecolorValue;
+                    color4DBasecolorParam.Name = FName("BaseColor_vect");
+                    if (section.material->GetVectorParameterValue(color4DBasecolorParam, basecolorValue))
+                    {
+                        aiColor3D transColor(basecolorValue.R, basecolorValue.G, basecolorValue.B);
+                        material->AddProperty(&transColor, 1, AI_MATKEY_COLOR_DIFFUSE);
+                    }
+                }
+                
+                //Scalar material parameters
+                {
+                    FHashedMaterialParameterInfo constRoughnessParam;
+                    constRoughnessParam.Name = FName("Roughness_scale");
+                    float roughnessValue=0.0f;
+                    if (section.material->GetScalarParameterValue(constRoughnessParam, roughnessValue))
+                    {
+                        material->AddProperty(&roughnessValue, 1, AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_ROUGHNESS_FACTOR);
+                    }
+                }
+
+                {
+                    FHashedMaterialParameterInfo constMetallicParam;
+                    constMetallicParam.Name = FName("Metallic_scale");
+                    float MetallicValue = 0.0f;
+                    if (section.material->GetScalarParameterValue(constMetallicParam, MetallicValue))
+                    {
+                        material->AddProperty(&MetallicValue, 1, AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLIC_FACTOR);
+                    }
+                }
+
+                {
+                    FHashedMaterialParameterInfo constRefractionParam;
+                    constRefractionParam.Name = FName("Refraction_scale");
+                    float refractionValue = 0.0f;      
+                    if (section.material->GetScalarParameterValue(constRefractionParam, refractionValue))
+                    {
+                        material->AddProperty(&refractionValue, 1, AI_MATKEY_REFRACTI);
+                    }
+                }
+
+                {
+                    FHashedMaterialParameterInfo constOpacityParam;
+                    constOpacityParam.Name = FName("Opacity_scale");
+                    float opacityValue = 1;
+                    if (section.material->GetScalarParameterValue(constOpacityParam, opacityValue))
+                    {
+                        material->AddProperty(&opacityValue, 1, AI_MATKEY_OPACITY);
+                    }
+                }
+
+                //experiment
+                /*{
+                    float matProperty = 0.85, property2 = 0.8, roughValue = 0.1f;
+                    //material->AddProperty(&matProperty,1,AI_MATKEY_REFLECTIVITY);
+                    aiColor4D property3(0.45, 0.45, 0.45, 0.5);
+                    aiColor3D specularColor(0.69, 0.69, 0.69);
+                    //material->AddProperty(&specularColor, 1, AI_MATKEY_COLOR_SPECULAR);
+                    //material->AddProperty<aiColor4D>(&property3, 1, AI_MATKEY_COLOR_REFLECTIVE);
+                    material->AddProperty(&property2, 1, AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLIC_FACTOR);
+
+                }*/
+                
+                if (section.material->GetBlendMode() == EBlendMode::BLEND_Translucent)
+                {
+
+                }
+                else if (section.material->GetBlendMode() == EBlendMode::BLEND_Opaque)
+                {
+                    
+                }
 			}
 			else
 			{
@@ -700,4 +781,27 @@ void FAssimpScene::ClearMeshData()
         delete material;
     }
     materials.Empty();
+}
+
+bool FAssimpNode::ExportTexture(UTexture* textureRef,FString &outTexturePath)
+{
+    if (textureRef != nullptr)
+    {
+        bool isExported;
+        outTexturePath = FPaths::ProjectDir() + "Export/" + textureRef->GetFName().ToString() + ".bmp";
+        // Exports texture
+        isExported = UExporter::ExportToFile(textureRef, NULL, *outTexturePath, false) >=1 ? true : false;
+        UE_LOG(LogTemp, Display, TEXT("M_M exported texture name = %s  is successfully exported? = %d"), *outTexturePath, isExported);
+        return isExported;
+        
+    }
+    else
+        return false;
+}
+
+aiString FAssimpNode::FStringToaiString(FString str)
+{
+    aiString assimpString;
+    assimpString=std::string(TCHAR_TO_UTF8(*str));
+    return assimpString;
 }
