@@ -423,20 +423,71 @@ void FAssimpNode::CreateAssimpMeshesFromMeshData(FAssimpScene& scene, const FRun
                         //Add texture as a property to material being exported
                         material->AddProperty(&assimpTexPath,AI_MATKEY_TEXTURE_NORMALS(0));
                     }
-
                 }
                 //Export Normal texture and add into aiMaterial - end
 
                 //Read metallic parameter and add into aiMaterial
                 {
                     FHashedMaterialParameterInfo matOpaqueParamInfo;
+                    UTexture* diffuse_tex;
+                    matOpaqueParamInfo.Name = FName("DiffuseMap");                    
+                    if (section.material->GetTextureParameterValue(matOpaqueParamInfo, diffuse_tex))
+                    {
+                        FString FileName;
+                        ExportTexture(diffuse_tex, FileName);
+                        aiString str = FStringToaiString(diffuse_tex->GetFName().ToString() + ".bmp");
+                        material->AddProperty(&str, AI_MATKEY_TEXTURE_DIFFUSE(0));
+                    }
+                }
+
+                {
+                    FHashedMaterialParameterInfo matOpaqueParamInfo;
+                    UTexture* emissive_tex;
+                    matOpaqueParamInfo.Name = FName("EmissiveMap");
+                    if (section.material->GetTextureParameterValue(matOpaqueParamInfo, emissive_tex))
+                    {
+                        FString FileName;
+                        ExportTexture(emissive_tex, FileName);
+                        aiString str = FStringToaiString(emissive_tex->GetFName().ToString() + ".bmp");
+                        material->AddProperty(&str, AI_MATKEY_TEXTURE_EMISSIVE(0));
+                    }
+                }
+
+                {
+                    FHashedMaterialParameterInfo matOpaqueParamInfo;
+                    UTexture* ao_tex;
+                    matOpaqueParamInfo.Name = FName("AOMap");
+                    if (section.material->GetTextureParameterValue(matOpaqueParamInfo, ao_tex))
+                    {
+                        FString FileName;
+                        ExportTexture(ao_tex, FileName);
+                        aiString str = FStringToaiString(ao_tex->GetFName().ToString() + ".bmp");
+                        material->AddProperty(&str, AI_MATKEY_TEXTURE_LIGHTMAP(0));
+                    }
+                }
+
+                {
+                    FHashedMaterialParameterInfo matOpaqueParamInfo;
+                    UTexture* opacity_tex;
+                    matOpaqueParamInfo.Name = FName("OpacityMap");
+                    if (section.material->GetTextureParameterValue(matOpaqueParamInfo, opacity_tex))
+                    {
+                        FString FileName;
+                        ExportTexture(opacity_tex, FileName);
+                        aiString str = FStringToaiString(opacity_tex->GetFName().ToString() + ".bmp");
+                        material->AddProperty(&str, AI_MATKEY_TEXTURE_OPACITY(0));
+                    }
+                }
+
+                {
+                    FHashedMaterialParameterInfo matOpaqueParamInfo;
                     UTexture* metallic_tex;
-                    matOpaqueParamInfo.Name = FName("Metallic_tex");                    
+                    matOpaqueParamInfo.Name = FName("MetallicMap");
                     if (section.material->GetTextureParameterValue(matOpaqueParamInfo, metallic_tex))
                     {
                         FString FileName;
                         ExportTexture(metallic_tex, FileName);
-                        aiString str = FStringToaiString(FileName);
+                        aiString str = FStringToaiString(metallic_tex->GetFName().ToString() + ".bmp");
                         float mettalicFactor = 0.8f;
                         material->AddProperty(&str, AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE);
                     }
@@ -444,20 +495,9 @@ void FAssimpNode::CreateAssimpMeshesFromMeshData(FAssimpScene& scene, const FRun
 
                 //Vector material parameters
                 {
-                    FHashedMaterialParameterInfo color4DSpecularParam;
-                    FLinearColor specColor;
-                    color4DSpecularParam.Name = FName("Specular_vect");
-                    if (section.material->GetVectorParameterValue(color4DSpecularParam, specColor))
-                    {
-                        aiColor4D specularColor(specColor.R, specColor.G, specColor.B,specColor.A);
-                        material->AddProperty(&specularColor, 1, AI_MATKEY_GLTF_PBRSPECULARGLOSSINESS_SPECULAR_FACTOR);
-                    }
-                }
-                
-                {
                     FHashedMaterialParameterInfo color4DBasecolorParam;
                     FLinearColor basecolorValue;
-                    color4DBasecolorParam.Name = FName("BaseColor_vect");
+                    color4DBasecolorParam.Name = FName("BaseColor");
                     if (section.material->GetVectorParameterValue(color4DBasecolorParam, basecolorValue))
                     {
                         aiColor3D transColor(basecolorValue.R, basecolorValue.G, basecolorValue.B);
@@ -465,10 +505,32 @@ void FAssimpNode::CreateAssimpMeshesFromMeshData(FAssimpScene& scene, const FRun
                     }
                 }
                 
+                {
+                    FHashedMaterialParameterInfo color4DSpecularParam;
+                    FLinearColor specColor;
+                    color4DSpecularParam.Name = FName("SpecularColor");
+                    if (section.material->GetVectorParameterValue(color4DSpecularParam, specColor))
+                    {
+                        aiColor4D specularColor(specColor.R, specColor.G, specColor.B,specColor.A);
+                        material->AddProperty(&specularColor, 1, AI_MATKEY_GLTF_PBRSPECULARGLOSSINESS_SPECULAR_FACTOR);
+                    }
+                }
+                  
+                {
+                    FHashedMaterialParameterInfo color4DSpecularParam;
+                    FLinearColor emissiveColor;
+                    color4DSpecularParam.Name = FName("EmissiveColor");
+                    if (section.material->GetVectorParameterValue(color4DSpecularParam, emissiveColor))
+                    {
+                        aiColor4D specularColor(emissiveColor.R, emissiveColor.G, emissiveColor.B, emissiveColor.A);
+                        material->AddProperty(&specularColor, 1, AI_MATKEY_COLOR_EMISSIVE);
+                    }
+                }
+
                 //Scalar material parameters
                 {
                     FHashedMaterialParameterInfo constRoughnessParam;
-                    constRoughnessParam.Name = FName("Roughness_scale");
+                    constRoughnessParam.Name = FName("Roughness_strength");
                     float roughnessValue=0.0f;
                     if (section.material->GetScalarParameterValue(constRoughnessParam, roughnessValue))
                     {
@@ -478,7 +540,7 @@ void FAssimpNode::CreateAssimpMeshesFromMeshData(FAssimpScene& scene, const FRun
 
                 {
                     FHashedMaterialParameterInfo constMetallicParam;
-                    constMetallicParam.Name = FName("Metallic_scale");
+                    constMetallicParam.Name = FName("Metallic_strength");
                     float MetallicValue = 0.0f;
                     if (section.material->GetScalarParameterValue(constMetallicParam, MetallicValue))
                     {
@@ -488,7 +550,7 @@ void FAssimpNode::CreateAssimpMeshesFromMeshData(FAssimpScene& scene, const FRun
 
                 {
                     FHashedMaterialParameterInfo constRefractionParam;
-                    constRefractionParam.Name = FName("Refraction_scale");
+                    constRefractionParam.Name = FName("Refraction_strength");
                     float refractionValue = 0.0f;      
                     if (section.material->GetScalarParameterValue(constRefractionParam, refractionValue))
                     {
@@ -498,7 +560,7 @@ void FAssimpNode::CreateAssimpMeshesFromMeshData(FAssimpScene& scene, const FRun
 
                 {
                     FHashedMaterialParameterInfo constOpacityParam;
-                    constOpacityParam.Name = FName("Opacity_scale");
+                    constOpacityParam.Name = FName("Opacity_strength");
                     float opacityValue = 1;
                     if (section.material->GetScalarParameterValue(constOpacityParam, opacityValue))
                     {
